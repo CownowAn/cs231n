@@ -2,6 +2,7 @@
 """
 
 import numpy as np
+from torch import DoubleTensor
 
 
 def affine_forward(x, w, b):
@@ -35,7 +36,7 @@ def affine_backward(dout, cache):
       - x: Input data, of shape (N, d_1, ... d_k)
       - w: Weights, of shape (D, M)
       - b: Biases, of shape (M,)
-      
+
     Returns a tuple of:
     - dx: Gradient with respect to x, of shape (N, d1, ..., d_k)
     - dw: Gradient with respect to w, of shape (D, M)
@@ -73,7 +74,9 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out = prev_h.dot(Wh) + x.dot(Wx) + b
+    next_h = np.tanh(out)
+    cache = out, x, prev_h, Wx, Wh
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -105,7 +108,12 @@ def rnn_step_backward(dnext_h, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out, x, prev_h, Wx, Wh = cache
+    dx = (dnext_h * (1 - np.square(np.tanh(out)))).dot(Wx.T)
+    dprev_h = (dnext_h * (1 - np.square(np.tanh(out)))).dot(Wh.T)
+    dWx = x.T.dot(dnext_h * (1 - np.square(np.tanh(out))))
+    dWh = prev_h.T.dot(dnext_h * (1 - np.square(np.tanh(out))))
+    db = np.sum((dnext_h * (1 - np.square(np.tanh(out)))), axis=0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -116,7 +124,7 @@ def rnn_step_backward(dnext_h, cache):
 
 def rnn_forward(x, h0, Wx, Wh, b):
     """Run a vanilla RNN forward on an entire sequence of data.
-    
+
     We assume an input sequence composed of T vectors, each of dimension D. The RNN uses a hidden
     size of H, and we work over a minibatch containing N sequences. After running the RNN forward,
     we return the hidden states for all timesteps.
@@ -154,7 +162,7 @@ def rnn_backward(dh, cache):
 
     Inputs:
     - dh: Upstream gradients of all hidden states, of shape (N, T, H)
-    
+
     NOTE: 'dh' contains the upstream gradients produced by the 
     individual loss functions at each timestep, *not* the gradients
     being passed between timesteps (which you'll have to compute yourself
@@ -186,7 +194,7 @@ def rnn_backward(dh, cache):
 
 def word_embedding_forward(x, W):
     """Forward pass for word embeddings.
-    
+
     We operate on minibatches of size N where
     each sequence has length T. We assume a vocabulary of V words, assigning each
     word to a vector of dimension D.
@@ -219,7 +227,7 @@ def word_embedding_forward(x, W):
 
 def word_embedding_backward(dout, cache):
     """Backward pass for word embeddings.
-    
+
     We cannot back-propagate into the words
     since they are integers, so we only return gradient for the word embedding
     matrix.
@@ -338,7 +346,7 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
 
 def lstm_forward(x, h0, Wx, Wh, b):
     """Forward pass for an LSTM over an entire sequence of data.
-    
+
     We assume an input sequence composed of T vectors, each of dimension D. The LSTM uses a hidden
     size of H, and we work over a minibatch containing N sequences. After running the LSTM forward,
     we return the hidden states for all timesteps.
@@ -408,7 +416,7 @@ def lstm_backward(dh, cache):
 
 def temporal_affine_forward(x, w, b):
     """Forward pass for a temporal affine layer.
-    
+
     The input is a set of D-dimensional
     vectors arranged into a minibatch of N timeseries, each of length T. We use
     an affine function to transform each of those vectors into a new vector of
@@ -455,7 +463,7 @@ def temporal_affine_backward(dout, cache):
 
 def temporal_softmax_loss(x, y, mask, verbose=False):
     """A temporal version of softmax loss for use in RNNs.
-    
+
     We assume that we are making predictions over a vocabulary of size V for each timestep of a
     timeseries of length T, over a minibatch of size N. The input x gives scores for all vocabulary
     elements at all timesteps, and y gives the indices of the ground-truth element at each timestep.
