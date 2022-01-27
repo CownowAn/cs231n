@@ -1,6 +1,7 @@
 """This file defines layer types that are commonly used for recurrent neural networks.
 """
 
+from matplotlib.pyplot import axis
 import numpy as np
 from torch import DoubleTensor
 
@@ -330,7 +331,18 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    a = x.dot(Wx) + prev_h.dot(Wh) + b  # [N x 4H]
+    N, H_4 = a.shape
+    H = H_4 // 4
+
+    i = sigmoid(a[:, :H])  # [N x H]
+    f = sigmoid(a[:, H:2*H])  # [N x H]
+    o = sigmoid(a[:, 2*H:3*H])  # [N x H]
+    g = np.tanh(a[:, 3*H:])  # [N x H]
+
+    next_c = f * prev_c + i * g  # [N x H]
+    next_h = o * np.tanh(next_c)  # [N x H]
+    cache = x, prev_c, prev_h, Wx, Wh, b, a, i, f, o, g, next_c, next_h
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -365,7 +377,28 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, prev_c, prev_h, Wx, Wh, b, a, i, f, o, g, next_c, next_h = cache
+
+    dnext_c += dnext_h * (1 - np.square(np.tanh(next_c))) * o
+    dprev_c = dnext_c * f
+
+    do = dnext_h * np.tanh(next_c)
+    dg = dnext_c * i
+    di = dnext_c * g
+    df = dnext_c * prev_c
+
+    di *= i * (1 - i)
+    df *= f * (1 - f)
+    do *= o * (1 - o)
+    dg *= (1 - np.square(g))
+
+    da = np.concatenate((di, df, do, dg), axis=1)  # [N x 4H]
+    # a = x*Wx + prev_h*Wh + b
+    dx = da.dot(Wx.T)
+    dWx = x.T.dot(da)
+    dprev_h = da.dot(Wh.T)
+    dWh = prev_h.T.dot(da)
+    db = np.sum(da, axis=0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
