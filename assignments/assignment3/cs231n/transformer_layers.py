@@ -1,3 +1,5 @@
+from cmath import inf
+from email.quoprimime import header_decode
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -7,12 +9,14 @@ import math
 This file defines layer types that are commonly used for transformers.
 """
 
+
 class PositionalEncoding(nn.Module):
     """
     Encodes information about the positions of the tokens in the sequence. In
     this case, the layer has no learnable parameters, since it is a simple
     function of sines and cosines.
     """
+
     def __init__(self, embed_dim, dropout=0.1, max_len=5000):
         """
         Construct the PositionalEncoding layer.
@@ -38,7 +42,10 @@ class PositionalEncoding(nn.Module):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        position_i = torch.arange(0, max_len).unsqueeze(dim=1) # [max_len, 1]
+        position_j = 10000 ** (-torch.arange(0, embed_dim, 2) / embed_dim)
+        pe[:, :, 0::2] = torch.sin(position_i * position_j)
+        pe[:, :, 1::2] = torch.cos(position_i * position_j)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -70,7 +77,7 @@ class PositionalEncoding(nn.Module):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        output = self.dropout(x + self.pe[:, :S, :])
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -117,7 +124,7 @@ class MultiHeadAttention(nn.Module):
         self.query = nn.Linear(embed_dim, embed_dim)
         self.value = nn.Linear(embed_dim, embed_dim)
         self.proj = nn.Linear(embed_dim, embed_dim)
-        
+
         ############################################################################
         # TODO: Initialize any remaining layers and parameters to perform the      #
         # attention operation as defined in Transformer_Captioning.ipynb. We will  #
@@ -126,7 +133,8 @@ class MultiHeadAttention(nn.Module):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        self.num_heads = num_heads
+        self.dropout = nn.Dropout(dropout)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -157,7 +165,7 @@ class MultiHeadAttention(nn.Module):
         N, S, D = query.shape
         N, T, D = value.shape
         # Create a placeholder, to be overwritten by your code below.
-        output = torch.empty((N, T, D))
+        output = torch.empty((N, S, D))
         ############################################################################
         # TODO: Implement multiheaded attention using the equations given in       #
         # Transformer_Captioning.ipynb.                                            #
@@ -173,13 +181,31 @@ class MultiHeadAttention(nn.Module):
         #     function masked_fill may come in handy.                              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        
+        H = self.num_heads
+        
+        Q = self.query(query)
+        K = self.key(key)
+        V = self.value(value)
 
-        pass
+        Q = Q.view(N, S, H, D//H).permute(0, 2, 1, 3)  # [N, H, S, D//H]
+        K = K.view(N, T, H, D//H).permute(0, 2, 1, 3)  # [N, H, T, D//H]
+        V = V.view(N, T, H, D//H).permute(0, 2, 1, 3)  # [N, H, T, D//H]
 
+        E = Q.matmul(K.transpose(2, 3)) / torch.sqrt(torch.Tensor([D / H]))  # [N, H, S, T]
+
+        if attn_mask is not None:
+            E = E.masked_fill(attn_mask == False, -float('inf'))
+
+        attention = torch.softmax(E, dim=-1) # [N, H, S, T]
+
+        output = torch.matmul(self.dropout(attention), V) # [N, H, S, T] X [N, H, T, D//H] -> [N, H, S, D//H]
+        output = output.permute(0, 2, 1, 3).contiguous()  # [N, S, H, D//H]
+        output = output.view(N, S, D)
+        output = self.proj(output)  # [N, S, D]
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
         return output
-
-
