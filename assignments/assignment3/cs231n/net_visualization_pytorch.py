@@ -1,3 +1,5 @@
+from cmath import exp
+from unittest import expectedFailure
 import torch
 import random
 import torchvision.transforms as T
@@ -34,8 +36,13 @@ def compute_saliency_maps(X, y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
-
+    scores = model(X)
+    correct_scores = scores.gather(1, y.view(-1, 1)).squeeze()
+    loss = correct_scores.sum()
+    loss.backward()
+    dx = X.grad
+    saliency, _ = torch.max(np.absolute(dx), dim=1)
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                             END OF YOUR CODE                               #
@@ -74,9 +81,26 @@ def make_fooling_image(X, target_y, model):
     # in fewer than 100 iterations of gradient ascent.                           #
     # You can print your progress over iterations to check your algorithm.       #
     ##############################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)
+    
+    for i in range(200):
+        scores = model(X_fooling) # [1, 1000] 
+        expect_y = scores.data.max(1)[1][0].item()
+        
+        if expect_y == target_y: 
+            break
+        
+        target_score = scores[:, target_y]
+        target_score.backward()
+        g = X_fooling.grad
+        dx = learning_rate * g
+        with torch.no_grad():
+            X_fooling += dx
+        
+        if i % 10 == 0:
+            print("Iteration: ", i)
+            print("expect_y: ", expect_y)
+            print("target_y: ", target_y)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
