@@ -83,13 +83,10 @@ def make_fooling_image(X, target_y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)
     
-    for i in range(200):
+    for i in range(100):
         scores = model(X_fooling) # [1, 1000] 
         expect_y = scores.data.max(1)[1][0].item()
-        
-        if expect_y == target_y: 
-            break
-        
+            
         target_score = scores[:, target_y]
         target_score.backward()
         g = X_fooling.grad
