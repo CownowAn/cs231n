@@ -121,14 +121,14 @@ def class_visualization_update_step(img, model, target_y, l2_reg, learning_rate)
     
     scores = model(img)
     target_score = scores[:, target_y]
-    l2_norm = l2_reg * torch.sum(img * img)
+    l2_norm = l2_reg * torch.norm(img)
     loss = target_score - l2_norm
     
     loss.backward()
     dimg = img.grad
     
     with torch.no_grad():
-        img += learning_rate * dimg
+        img += (learning_rate * dimg / torch.norm(dimg))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ########################################################################
