@@ -86,18 +86,20 @@ def make_fooling_image(X, target_y, model):
     for i in range(100):
         scores = model(X_fooling) # [1, 1000] 
         expect_y = scores.data.max(1)[1][0].item()
-            
         target_score = scores[:, target_y]
+        if expect_y == target_y:
+            print("The model is fooled when the iteration number is ", i)
+            break
         target_score.backward()
-        g = X_fooling.grad
-        dx = learning_rate * g
+        dx = X_fooling.grad
         with torch.no_grad():
-            X_fooling += dx
+            X_fooling += learning_rate * dx
         
         if i % 10 == 0:
             print("Iteration: ", i)
             print("expect_y: ", expect_y)
             print("target_y: ", target_y)
+            print("---------------------------------------")
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -114,8 +116,19 @@ def class_visualization_update_step(img, model, target_y, l2_reg, learning_rate)
     # Be very careful about the signs of elements in your code.            #
     ########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    
+    img = img.requires_grad_()
+    
+    scores = model(img)
+    target_score = scores[:, target_y]
+    l2_norm = l2_reg * torch.sum(img * img)
+    loss = target_score - l2_norm
+    
+    loss.backward()
+    dimg = img.grad
+    
+    with torch.no_grad():
+        img += learning_rate * dimg
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ########################################################################
